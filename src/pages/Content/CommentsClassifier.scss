@@ -1,0 +1,27 @@
+.comments-classifier{
+    width: 100%;
+
+    .body {
+        height: calc(95vh - 80px);
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0px 10px;
+    }
+
+    .row {
+        width: 100%;
+    }
+
+    .heading {
+        color: white;
+        padding: 0 8px;
+        font-size: larger;
+        margin-bottom: 5px;
+    }
+
+    .heading-problem {
+        background-color: black;
+        padding: 10px;
+        border-radius: 3px;
+    }
+}

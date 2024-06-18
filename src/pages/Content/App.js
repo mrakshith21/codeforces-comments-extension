@@ -90,7 +90,7 @@ function App() {
                             <option value="Links">Links</option>
                         </select>
                     </div>
-                    <div className='content'>
+                    <div className=''>
                         {renderContent()}
                     </div>
                 </div>
