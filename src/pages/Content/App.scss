@@ -1,0 +1,91 @@
+.codeforces-comment-preview {
+
+    position: fixed;
+    z-index: 900;
+    background-color: white;
+    border-radius: 5px;
+    right: 5px;
+    box-shadow: 20px 30px 30px rgba(0, 0, 0, 0.3);
+    min-width: 100px;
+    max-width: 500px;
+    height: 97vh;
+    color: black !important;
+
+    font-size: x-small;
+    /* display: none; */
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease-in-out;
+    background: white;
+    border: 1px solid #f5f5f5;
+
+    ::before {
+        content: '';
+        background-color: rgb(229, 224, 224);
+        position: absolute;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        cursor: ew-resize;
+    }
+
+    ::before:hover {
+        background-color: #eeeeee;
+    }
+
+    .container {
+        padding-top: 10px;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    .white {
+        color: white;
+    }
+
+    .menu {
+        position: relative;
+        padding: 0;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .width-slider {
+        margin: 5px;
+        float: right;
+        vertical-align: middle;
+    }
+
+    .menu-item {
+        padding: 5px;
+    }
+
+    /* Label */
+    .menu-item-name {
+        font-size: small;
+    }
+
+
+    .overflow-text {
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    .menu {
+        padding: 0 10px;
+    }
+
+    .menu-input {
+        width: 94%;
+    }
+
+    .settings {
+        padding: 5px;
+        margin-bottom: 10px;
+    }
+}

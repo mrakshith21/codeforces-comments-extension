@@ -1,0 +1,61 @@
+.users {
+    
+
+    .search-user-input{
+        width: 100% !important;
+        display: block !important;
+    }
+
+    .search-result-list{        
+        height: calc(95vh - 130px);
+        overflow-y: auto;
+        overflow-x: hidden;
+        
+    }
+    .comment-user{
+        background-color: black;
+        color: white;
+        padding: 10px;
+    }
+
+    .users-input {
+        width: 94%;
+        margin-bottom: 5px;
+    }
+
+    .users-input-div{
+        padding: 0 10px;
+    }
+
+    .users-btns {
+        padding: 0 10px;
+    }
+
+    .selected-users-buttons{
+        margin: 10px 0;
+    }
+
+    .selected-users-button {
+        border: 1px solid #607d8b;
+        background-color: #455a64;
+        border-radius: 5px;
+        display: inline-block;
+        margin: 3px;
+        font-size: x-small;
+    }
+
+    .selected-users-button-span{
+        cursor: pointer;
+    }
+
+    .remove-user-icon {
+        float: right;
+        margin-right: 5px;
+        cursor: pointer;
+    }
+
+    .btn-search-user{
+        margin: 0 5px 10px 0px;
+    }
+}
+
