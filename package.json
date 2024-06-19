@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "bootstrap": "^5.3.3",
+    "compromise": "^14.13.0",
     "react": "^18.2.0",
     "react-autocomplete": "^1.8.1",
     "react-dom": "^18.2.0",

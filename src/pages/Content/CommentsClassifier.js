@@ -2,11 +2,15 @@ import React, { Component, useEffect, useState } from 'react';
 
 import './Common.css';
 import './CommentsClassifier.scss';
+import nlp from 'compromise';
+import Spinner from './Spinner';
 
-const CommentsClassifier = ({comments}) => {
+const CommentsClassifier = () => {
 
     // Array of [problem name, array of related comments]
     const [problemsToComments, setProblemsToComments] = useState([]);
+    
+    const [selected, setSelected] = useState(null);
 
     useEffect(() => {
         const content = document.getElementsByClassName('content')[0];
@@ -22,31 +26,136 @@ const CommentsClassifier = ({comments}) => {
         })
         .then(data => {
             const problems = data.result.problems;
-            const tempProblemsToComments = [];
-            problems.map(problem => tempProblemsToComments.push([problem.index + ". " + problem.name, []]));
-            setProblemsToComments(tempProblemsToComments);
-            console.log(tempProblemsToComments);
             classifyComments(problems);
         });
     }, []);
 
+    function getCommentText(comment) {
+        if (comment.getElementsByClassName('ttypography').length == 0) {
+            return "";
+        }
+        const commentText = comment.getElementsByClassName('ttypography')[0].children[0].textContent;
+        return commentText;
+    }
+
+    function includesIgnoreCase(a, b){
+        return a.toLowerCase().includes(b.toLowerCase());
+    }
+    // returns a score denoting the relevance of the comment thread to a problem
+    function getScore(comment, problem) {
+        const problemCode = problem.index;
+        const commentText = getCommentText(comment);
+        const doc = nlp(commentText);
+        const nouns = doc.nouns().json();
+        for(let i = 0; i < nouns.length; i++){
+            const splits = nouns[i].text.split(/[ ,;:?!']/);
+            if(splits.includes(problemCode) || nouns[i].text.includes(problem.name)){
+                return 1;
+            }
+        }
+        return 0;
+    }
+
     async function classifyComments(problems){
         console.log("Classifying problems");
-        // TODO
+        const problemsList = problems.map(problem => "Problem " + problem.index + " - " + problem.name);
+        console.log(problemsList);
+        const commentsDiv = document.getElementsByClassName('comments')[0];
+        const comments = commentsDiv.getElementsByClassName('comment');
+        const commentThreads = [...comments].filter(comment => {
+            return comment.parentElement == commentsDiv
+        });
+        
+        const tempProblemsToComments = [];        
+        problems.map(problem => tempProblemsToComments.push([problem.index + ". " + problem.name, []]));
+        tempProblemsToComments.push(["Miscellaneous", []]);
+        setProblemsToComments(tempProblemsToComments);
+        
+        console.log(tempProblemsToComments);
+        let count = 0;
+        console.log("Classifying " + commentThreads.length + " comment threads");
+
+        const THRESHOLD_SCORE = 0.5;
+        for(let comment of commentThreads){
+            let index = 0;
+            let misc = true;
+            for(let problem of problems){
+                const score = getScore(comment, problem);
+                if(score > 0){
+                    tempProblemsToComments[index][1].push(comment);
+                    misc = false;
+                }
+                index++;
+            }
+            if(misc){
+                tempProblemsToComments[problems.length][1].push(comment);
+            }
+
+        }
+        console.log(tempProblemsToComments);
+        setProblemsToComments(tempProblemsToComments);
+        console.log('Completed classification'); 
+    }
+
+    function highlightTextOnScroll(element) {
+        const viewportHeight = window.innerHeight;
+        const highlighter = () => {
+
+            const elementTop = element.getBoundingClientRect().top;
+            if (elementTop < viewportHeight * 0.3 && elementTop > 0) {
+                element.style.backgroundColor = 'yellow';
+                setTimeout(() => {
+                    element.style.backgroundColor = 'inherit';
+                }, 300);
+            }
+        };
+        window.addEventListener('scroll', highlighter, false);
+        setTimeout(() => {
+            window.removeEventListener('scroll', highlighter, false);
+        }, 1000);
+    }
+
+    function changeBgOnClick(e, comment) {
+
+        const element = document.getElementById(e);
+        if (selected === null) {
+        }
+        else {
+            selected.classList.remove('selected');
+        }
+        element.classList.add('selected');
+        setSelected(element);
+        highlightTextOnScroll(comment);
+        comment.scrollIntoView({
+            behavior: 'smooth'
+        });
     }
 
     return (
         <div className="comments-classifier">
             <div className='body'>
-                {problemsToComments ? problemsToComments.map((problem, index) => {
+                {problemsToComments ? problemsToComments.map((problemAndComments, index) => {
 
                     return (
-                        <div className='heading'>
-                            <div className='heading-problem'>{problem[0]}</div>
+                        <div>                            
+                            <div className='heading'>
+                                <div className='heading-problem'>{problemAndComments[0]}</div>
+                            </div>
+                            <div>                                
+                                {
+                                    problemAndComments[1].map((comment, index) => {
+
+                                        return (
+                                            <div className='comment-preview' id={"comment-" + index} onClick={(e) => changeBgOnClick("comment-" + index, comment)}>
+                                                {getCommentText(comment)}
+                                            </div>
+                                        );
+                                    })
+                                }
+                            </div>
                         </div>
                     );
-                }) : <></>}
-
+                }) : <Spinner/>}
             </div>
         </div>
     )    
