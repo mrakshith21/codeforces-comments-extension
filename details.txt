@@ -1,0 +1,34 @@
+How to give a score for each comment regarding its relevance to a problem?
+
+Things to make use of?
+- Problem code - 'A', 'B' (also 'problem A')
+- Problem name - each word
+- tags
+
+Phrases
+- A, B, C, .. - problem codes (uppercase only)
+- problem A, problem B, ...
+- problem name - each word
+- for A, for B ...
+- of A, of B ...
+- A's solution, B's solutions....
+- in A, in B,
+- use all prepositions before problem code
+- 
+
+
+Things to keep in mind:
+- Split by space, as well as commas, !, and so on
+- Remove inner tags in text (such as bold, italics, etc.)
+
+
+Will be good to add
+- Key words from the problem statement
+- Key words from the editorial solution
+- 
+
+
+Possible ideas:
+1. Give weights to above parameters and find weighted sum
+2. Do the process for all comments in a thread before deciding
+

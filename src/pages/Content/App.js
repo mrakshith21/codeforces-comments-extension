@@ -73,7 +73,7 @@ function App() {
             return <Links comments={comments} />
         }
         else if(menuSelected == "Comments Classifier"){
-            return <CommentsClassifier comments={comments}></CommentsClassifier> 
+            return <CommentsClassifier></CommentsClassifier> 
         }
     }
 
