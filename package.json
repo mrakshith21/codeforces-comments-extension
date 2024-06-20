@@ -1,11 +1,11 @@
 {
-  "name": "chrome-extension-boilerplate-react",
-  "version": "5.0.4",
-  "description": "A chrome extension boilerplate built with React 18, Webpack 5, and Webpack Dev Server 4",
+  "name": "codeforces-comments-extension",
+  "version": "0.0.1",
+  "description": "A chrome extension to classify comments to relevant problems in the tutorial page of Codeforces",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lxieyang/chrome-extension-boilerplate-react.git"
+    "url": "https://github.com/mrakshith21/codeforces-comments-extension"
   },
   "scripts": {
     "build": "node utils/build.js",

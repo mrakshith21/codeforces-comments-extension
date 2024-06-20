@@ -41,20 +41,6 @@ const CommentsClassifier = () => {
     function includesIgnoreCase(a, b){
         return a.toLowerCase().includes(b.toLowerCase());
     }
-    // returns a score denoting the relevance of the comment thread to a problem
-    function getScore(comment, problem) {
-        const problemCode = problem.index;
-        const commentText = getCommentText(comment);
-        const doc = nlp(commentText);
-        const nouns = doc.nouns().json();
-        for(let i = 0; i < nouns.length; i++){
-            const splits = nouns[i].text.split(/[ ,;:?!']/);
-            if(splits.includes(problemCode) || nouns[i].text.includes(problem.name)){
-                return 1;
-            }
-        }
-        return 0;
-    }
 
     async function classifyComments(problems){
         console.log("Classifying problems");
@@ -65,33 +51,41 @@ const CommentsClassifier = () => {
         const commentThreads = [...comments].filter(comment => {
             return comment.parentElement == commentsDiv
         });
-        
+
         const tempProblemsToComments = [];        
         problems.map(problem => tempProblemsToComments.push([problem.index + ". " + problem.name, []]));
         tempProblemsToComments.push(["Miscellaneous", []]);
         setProblemsToComments(tempProblemsToComments);
         
         console.log(tempProblemsToComments);
-        let count = 0;
         console.log("Classifying " + commentThreads.length + " comment threads");
 
-        const THRESHOLD_SCORE = 0.5;
         for(let comment of commentThreads){
-            let index = 0;
-            let misc = true;
-            for(let problem of problems){
-                const score = getScore(comment, problem);
-                if(score > 0){
-                    tempProblemsToComments[index][1].push(comment);
-                    misc = false;
-                }
-                index++;
+            let doesTalk = new Array(problems.length).fill(false); // does the comment talk about the ith problem
+
+            const commentText = getCommentText(comment);
+            const doc = nlp(commentText);
+            const nouns = doc.nouns().json();
+
+            /* 
+                Find out if problem code acts as a noun or problem name appears in comment text. 
+                Splits have to be made by chars such as space, commas, and so on.
+                Classified as miscellaneous if no problem is found relevant
+            */
+            for(let i = 0; i < nouns.length; i++){
+                const splits = nouns[i].text.split(/[ ,;:?!.\-']/);
+                problems.map((problem, j) => {
+                    if(splits.includes(problem.index) || includesIgnoreCase(nouns[i].text, problem.name)){
+                        doesTalk[j] = true; 
+                        tempProblemsToComments[j][1].push(comment);                    
+                    }
+                });
             }
-            if(misc){
+            if(!doesTalk.includes(true)){
                 tempProblemsToComments[problems.length][1].push(comment);
             }
-
         }
+
         console.log(tempProblemsToComments);
         setProblemsToComments(tempProblemsToComments);
         console.log('Completed classification'); 
