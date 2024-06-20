@@ -28,7 +28,6 @@ function App() {
     };
 
     useEffect(() => {
-        console.log('In use effect');
         document.addEventListener('keydown', handleKeyDown);
 
 
