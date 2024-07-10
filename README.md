@@ -1,40 +1,43 @@
-# Codeforces Comment Filter and Preview Extension
+# Codeforces Comment Extension
+
+A Chrome extensions that classifies comments to relevant problems in the Codeforces tutorial pages.
+
+This extension is still under development. We invite you to share your experience and ideas.
+
+
+### NOTE
+* Currently, only the `without-ml` branch is functional. It classifies comments based on pattern search. Though not perfect, it provides decent results. Please use this branch.
+* You need to have `nodejs` and `npm` installed. 
+
+## Install
+
+1. Clone this repository
+2. Install packages and build
+
+```
+npm install  
+npm run build
+```
+This generates a `build` folder.
+
+3. Load the extension to your browser.
+  * Go to the Extensions page.
+  * Enable developer mode.
+  * Click `Load unpacked`.
+  * Select the `build` folder that was generated.
+
+## Use
+* Go to a tutorial page on Codeforces. A sidebar appears with the list of problems, and a preview of relevant comment threads for each problem.
+* Click on the preview of any comment to scroll to that thread. The comment is highlighted in yellow for a second to help you find it.
+
+## Things to be added / fixed
+* An option to hide / show the sidebar
+* Use a combination of ML and pattern search to make the results better.
+* Currently, only the first comment of a thread is considered for classification. We must find a way to consider the entire comment thread for classification.
+* Improve extraction of text from comment when it contains links, images and so on.
+* Use upvotes/downvotes to sort the results.
 
 
 
-- View previews of comments sorted based on 
-  * usefulness of the comment thread
-  * comment writer rating
-  * newest / oldest
-- create a list of your favourite users and find out their comments in the blog
-- view your comments in the blog
-- View comments by the tutorial author (he might be explaining some problems)
-- Display all youtube links (or maybe other links also, again maybe based on usefulness)
 
 
-## More things
-
-- View sub threads in a thread similarly (should come as a drop down). Should implement this for one level for now
-- View comments by the tutorial author (he might be explaining some problems)
-
-## Design plans
-
-- Make the div transparent when user is reading / scrolling through the blog
-- Close button
-- Keep the width / menu fixed or find other ways to resize the div
-- menu for different options
-- Spinner
-
-## Long terem goals
-
-Mostly using AI
-
-- Classify comments based on which problem they are talking about
-- Generate summary of comments
-
-
-
-## Things to store
-
-- favourite authors
-- 
