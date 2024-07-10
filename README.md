@@ -1,13 +1,13 @@
 # Codeforces Comment Extension
 
-A Chrome extensions that classifies comments to relevant problems in the Codeforces tutorial pages.
+This is a React Chrome extension that classifies comments to relevant problems in the Codeforces tutorial pages.
 
-This extension is still under development. We invite you to share your experience and ideas.
+This extension is still under development.
 
 
 ### NOTE
 * Currently, only the `without-ml` branch is functional. It classifies comments based on pattern search. Though not perfect, it provides decent results. Please use this branch.
-* You need to have `nodejs` and `npm` installed. 
+* You need to have `nodejs`, `npm` and `react` installed. 
 
 ## Install
 
