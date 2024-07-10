@@ -28,7 +28,7 @@ const CommentsClassifier = () => {
         })
         .then(data => {
             const problems = data.result.problems;
-            classifyComments(problems);
+            classifyComments(problems, contestId);
         });
     }, []);
 
@@ -36,15 +36,19 @@ const CommentsClassifier = () => {
         if (comment.getElementsByClassName('ttypography').length == 0) {
             return "";
         }
-        const commentText = comment.getElementsByClassName('ttypography')[0].children[0].textContent;
-        return commentText;
+        try {            
+            return comment.getElementsByClassName('ttypography')[0].textContent;
+        } catch (error) {
+            console.error('Cannot get comment text of ', comment);
+            return "";   
+        }
     }
 
     function includesIgnoreCase(a, b){
         return a.toLowerCase().includes(b.toLowerCase());
     }
 
-    async function classifyComments(problems){
+    async function classifyComments(problems, contestId){
         console.log("Classifying problems");
         const problemsList = problems.map(problem => "Problem " + problem.index + " - " + problem.name);
         console.log(problemsList);
@@ -77,9 +81,11 @@ const CommentsClassifier = () => {
             const commentText = getCommentText(comment);
 
             let miscellaneous = true;
-            const splits = commentText.split(/[ ,;:?!.\-']/);
+            const splits = commentText.split(/[^A-Za-z0-9]/);
             problems.map((problem, j) => {
-                if(splits.includes(problem.index) || includesIgnoreCase(commentText, problem.name)){
+                if(splits.includes(problem.index) || includesIgnoreCase(commentText, problem.name)
+                  || commentText.includes('https://codeforces.com/contest/' + contestId + '/problem/' + problem.index)
+                  || commentText.includes('https://codeforces.com/problemset/problem/' + contestId + '/' + problem.index)){
                     tempProblemsToComments[j].comments.push(comment);   
                     miscellaneous = false;        
                 }
@@ -151,7 +157,7 @@ const CommentsClassifier = () => {
                                 {
                                     problemAndComments.comments.map((comment, index) => {
                                         return (
-                                            <div className='comment-preview' id={"comment-" + index} onClick={(e) => changeBgOnClick("comment-" + index, comment)}>
+                                            <div className='comment-preview' id={`comment-${problemAndComments.code}-${index}`} onClick={(e) => changeBgOnClick(`comment-${problemAndComments.code}-${index}`, comment)}>
                                                 {getCommentText(comment)}
                                             </div>
                                         );
