@@ -121,8 +121,8 @@ button:active {
     background-color: #eeeeee;
 }
 
-.selected {
-    background-color: #e0e0e0;
+.selected, .selected:hover {
+    background-color: #e0e0e0 !important;
 }
 
 /* Scrollbar */

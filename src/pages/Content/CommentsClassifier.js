@@ -2,13 +2,18 @@ import React, { Component, useEffect, useState } from 'react';
 
 import './Common.css';
 import './CommentsClassifier.scss';
+import Spinner from './Spinner';
 
-const CommentsClassifier = ({comments}) => {
+const CommentsClassifier = () => {
 
     // Array of [problem name, array of related comments]
     const [problemsToComments, setProblemsToComments] = useState([]);
+    
+    const [selected, setSelected] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        console.log("Started");
         const content = document.getElementsByClassName('content')[0];
         const contestLink = content.parentElement.getElementsByClassName('notice')[0].href;
         const contestId = contestLink.split('/').pop();
@@ -22,31 +27,145 @@ const CommentsClassifier = ({comments}) => {
         })
         .then(data => {
             const problems = data.result.problems;
-            const tempProblemsToComments = [];
-            problems.map(problem => tempProblemsToComments.push([problem.index + ". " + problem.name, []]));
-            setProblemsToComments(tempProblemsToComments);
-            console.log(tempProblemsToComments);
-            classifyComments(problems);
+            classifyComments(problems, contestId);
         });
     }, []);
 
-    async function classifyComments(problems){
+    function getCommentText(comment) {
+        if (comment.getElementsByClassName('ttypography').length == 0) {
+            return "";
+        }
+        try {            
+            return comment.getElementsByClassName('ttypography')[0].textContent;
+        } catch (error) {
+            console.error('Cannot get comment text of ', comment);
+            return "";   
+        }
+    }
+
+    function includesIgnoreCase(a, b){
+        return a.toLowerCase().includes(b.toLowerCase());
+    }
+
+    async function classifyComments(problems, contestId){
         console.log("Classifying problems");
-        // TODO
+        const problemsList = problems.map(problem => "Problem " + problem.index + " - " + problem.name);
+        console.log(problemsList);
+        const commentsDiv = document.getElementsByClassName('comments')[0];
+        const comments = commentsDiv.getElementsByClassName('comment');
+        const commentThreads = [...comments].filter(comment => {
+            return comment.parentElement == commentsDiv
+        });
+
+        const tempProblemsToComments = [];        
+        problems.map(problem => tempProblemsToComments.push({
+            code: problem.index,
+            name: problem.name,
+            tags: problem.tags,
+            comments: []
+        }));
+        tempProblemsToComments.push({
+            code: "",
+            name: "Miscellaneous",
+            tags: [],
+            comments: []
+        });
+        // setProblemsToComments(tempProblemsToComments);
+        
+        console.log(tempProblemsToComments);
+        console.log("Classifying " + commentThreads.length + " comment threads");
+
+        for(let comment of commentThreads){
+            // find which problems the comment talks about
+            const commentText = getCommentText(comment);
+
+            let miscellaneous = true;
+            const splits = commentText.split(/[^A-Za-z0-9]/);
+            problems.map((problem, j) => {
+                if(splits.includes(problem.index) || includesIgnoreCase(commentText, problem.name)
+                  || commentText.includes('https://codeforces.com/contest/' + contestId + '/problem/' + problem.index)
+                  || commentText.includes('https://codeforces.com/problemset/problem/' + contestId + '/' + problem.index)){
+                    tempProblemsToComments[j].comments.push(comment);   
+                    miscellaneous = false;        
+                }
+            });
+
+            if(miscellaneous){
+                tempProblemsToComments[problems.length].comments.push(comment);
+            }
+        }
+
+        console.log(tempProblemsToComments);
+        console.log("Loading complete");
+        setLoading(false);
+        setProblemsToComments(tempProblemsToComments);
+        console.log('Completed classification');
+    }
+
+    function highlightTextOnScroll(element) {
+        const viewportHeight = window.innerHeight;
+        const highlighter = () => {
+
+            const elementTop = element.getBoundingClientRect().top;
+            if (elementTop < viewportHeight * 0.3 && elementTop > 0) {
+                element.style.backgroundColor = 'yellow';
+                setTimeout(() => {
+                    element.style.backgroundColor = 'inherit';
+                }, 300);
+            }
+        };
+        window.addEventListener('scroll', highlighter, false);
+        setTimeout(() => {
+            window.removeEventListener('scroll', highlighter, false);
+        }, 1000);
+    }
+
+    function changeBgOnClick(e, comment) {
+
+        const element = document.getElementById(e);
+        if (selected === null) {
+        }
+        else {
+            selected.classList.remove('selected');
+        }
+        element.classList.add('selected');
+        setSelected(element);
+        highlightTextOnScroll(comment);
+        comment.scrollIntoView({
+            behavior: 'smooth'
+        });
+    }
+
+    const toggleComments = (code) => {
+        console.log("Toggling " + code + " comments");
+        document.getElementById('comment-preview-list-' + code).classList.toggle('show');
+        document.getElementById('heading-' + code).classList.toggle('close');
     }
 
     return (
         <div className="comments-classifier">
             <div className='body'>
-                {problemsToComments ? problemsToComments.map((problem, index) => {
+                {!loading ? problemsToComments.map(problemAndComments => {
 
                     return (
-                        <div className='heading'>
-                            <div className='heading-problem'>{problem[0]}</div>
+                        <div>                            
+                            <div id={`heading-${problemAndComments.code}`} className='heading'>
+                                <div className='heading-text'  onClick={() => toggleComments(problemAndComments.code)}>{(problemAndComments.code ? (problemAndComments.code + ". "): "") + problemAndComments.name}</div>
+                            </div>
+                            <div id={`comment-preview-list-${problemAndComments.code}`} className='comment-preview-list show'>                                
+                                {
+                                    problemAndComments.comments.map((comment, index) => {
+                                        return (
+                                            <div className='comment-preview' id={`comment-${problemAndComments.code}-${index}`} onClick={(e) => changeBgOnClick(`comment-${problemAndComments.code}-${index}`, comment)}>
+                                                {getCommentText(comment)}
+                                            </div>
+                                        );
+                                    })
+                                }
+                            </div>
                         </div>
                     );
-                }) : <></>}
-
+                }) : <Spinner/>}
             </div>
         </div>
     )    
