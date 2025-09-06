@@ -23,6 +23,5 @@
 # secrets
 secrets.*.js
 
-.babelrc
 .eslintrc
 .prettierrc

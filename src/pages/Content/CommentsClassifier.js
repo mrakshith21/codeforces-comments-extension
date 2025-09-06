@@ -2,7 +2,6 @@ import React, { Component, useEffect, useState } from 'react';
 
 import './Common.css';
 import './CommentsClassifier.scss';
-import nlp from 'compromise';
 import Spinner from './Spinner';
 
 const CommentsClassifier = () => {
