@@ -11,23 +11,112 @@ const CommentsClassifier = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const getTutorialId = () => {
+            const pathParts = window.location.pathname.split('/');
+            return pathParts[pathParts.indexOf('entry') + 1];
+        };
 
-        console.log("Started");
-        const content = document.getElementsByClassName('content')[0];
-        const contestLink = content.parentElement.getElementsByClassName('notice')[0].href;
-        const contestId = contestLink.split('/').pop();
-        console.log("Contest Id = ", contestId);
-        fetch(`https://codeforces.com/api/contest.standings?contestId=${contestId}&from=1&count=1`)
-        .then(response => {
-            if(!response.ok){
-                console.error('Error while fetching contest problems');
+        const loadFromStorage = async (tutorialId) => {
+            return new Promise((resolve) => {
+                chrome.storage.local.get(tutorialId, (result) => {
+                    resolve(result[tutorialId]);
+                });
+            });
+        };
+
+        const saveToStorage = async (tutorialId, data) => {
+            return new Promise((resolve) => {
+                chrome.storage.local.set({ [tutorialId]: data }, resolve);
+            });
+        };
+
+        const init = async () => {
+            console.log("Started");
+            const tutorialId = getTutorialId();
+            console.log("Tutorial Id = ", tutorialId);
+
+            // Check if data exists in storage
+            const storedData = await loadFromStorage(tutorialId);
+            if (storedData && storedData.problemClassifications && storedData.problems && storedData.contest) {
+                console.log("Loading classifications, contest and problems from storage");
+                const commentsDiv = document.getElementsByClassName('comments')[0];
+                const problems = storedData.problems;  // Now directly accessing problems array
+                
+                // Initialize with stored problems data
+                let reconstructedProblemsToComments = problems.map(problem => ({
+                    code: problem.index,
+                    name: problem.name,
+                    tags: problem.tags,
+                    comments: []
+                }));
+                
+                // Add miscellaneous category
+                reconstructedProblemsToComments.push({
+                    code: "",
+                    name: "Miscellaneous",
+                    tags: [],
+                    comments: []
+                });
+
+                // Add comments to each problem based on stored classifications
+                storedData.problemClassifications.forEach(({problem, commentIds}, index) => {
+                    const comments = commentIds
+                        .map(id => commentsDiv.querySelector(`[commentid="${id}"]`))
+                        .filter(comment => comment !== null); // Filter out any comments that no longer exist
+                    
+                    if (index < reconstructedProblemsToComments.length) {
+                        reconstructedProblemsToComments[index].comments = comments;
+                    }
+                });
+                
+                console.log("Reconstructed problems with comments:", reconstructedProblemsToComments);
+                setProblemsToComments(reconstructedProblemsToComments);
+                setLoading(false);
+                return;
             }
-            return response.json();
-        })
-        .then(data => {
+
+            // If no stored data, proceed with classification
+            const content = document.getElementsByClassName('content')[0];
+            const contestLink = content.parentElement.getElementsByClassName('notice')[0].href;
+            const contestId = contestLink.split('/').pop();
+            console.log("Contest Id = ", contestId);
+            
+            const response = await fetch(`https://codeforces.com/api/contest.standings?contestId=${contestId}&from=1&count=1`);
+            if (!response.ok) {
+                console.error('Error while fetching contest problems');
+                return;
+            }
+            
+            const data = await response.json();
             const problems = data.result.problems;
-            classifyComments(problems, contestId);
-        });
+            
+            // Classify comments and store the results
+            const classifications = await classifyComments(problems, contestId);
+            
+            // Convert the classifications to a more meaningful structure with comment IDs
+            const problemClassifications = problems.map((problem, index) => ({
+                problem,
+                commentIds: classifications[index].comments.map(comment => comment.getAttribute('commentid'))
+            }));
+            
+            // Add miscellaneous comments
+            problemClassifications.push({
+                problem: { name: "Miscellaneous" },
+                commentIds: classifications[problems.length].comments.map(comment => comment.getAttribute('commentid'))
+            });
+
+            // Save to storage
+            await saveToStorage(tutorialId, {
+                contestId,
+                problemClassifications,
+                contest: data.result.contest,    // Store contest info
+                problems: data.result.problems,  // Store problems list
+                timestamp: Date.now()
+            });
+            console.log("Saved problem classifications, contest and problems data to storage");
+        };
+
+        init();
     }, []);
 
     function getCommentText(comment) {
@@ -146,14 +235,14 @@ const CommentsClassifier = () => {
             let matchedProblems = [];
             
             // Try Gemini
-            if ((!matchedProblems || matchedProblems.length === 0) && geminiSession) {
-                matchedProblems = await classifySingleCommentByGemini(comment, problems, geminiSession);
-                if (matchedProblems && matchedProblems.length > 0) {
-                    classificationStats.gemini++;
-                }
-            }
+            // if ((!matchedProblems || matchedProblems.length === 0) && geminiSession) {
+            //     matchedProblems = await classifySingleCommentByGemini(comment, problems, geminiSession);
+            //     if (matchedProblems && matchedProblems.length > 0) {
+            //         classificationStats.gemini++;
+            //     }
+            // }
             
-            // Fall back to string matching if both failed
+            // Fall back to string matching if failed
             if (!matchedProblems || matchedProblems.length === 0) {
                 matchedProblems = await classifySingleCommentByString(comment, problems, contestId);
                 if (matchedProblems && matchedProblems.length > 0) {
@@ -190,6 +279,7 @@ const CommentsClassifier = () => {
         console.log('Classification stats:', classificationStats);
 
         setLoading(false);
+        return tempProblemsToComments; // Return the classifications
     }
 
     function highlightTextOnScroll(element) {

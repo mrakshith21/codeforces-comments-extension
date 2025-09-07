@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Codeforces Comments Extension",
   "description": "A chrome extension to easily navigate through comments in blogs",
+  "permissions": ["storage"],
   "background": { "service_worker": "background.bundle.js" },
   "action": {
     "default_popup": "popup.html",
