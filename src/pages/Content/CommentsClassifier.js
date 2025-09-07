@@ -1,5 +1,4 @@
 import React, { Component, useEffect, useState } from 'react';
-
 import './Common.css';
 import './CommentsClassifier.scss';
 import Spinner from './Spinner';
@@ -8,11 +7,11 @@ const CommentsClassifier = () => {
 
     // Array of [problem name, array of related comments]
     const [problemsToComments, setProblemsToComments] = useState([]);
-    
     const [selected, setSelected] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+
         console.log("Started");
         const content = document.getElementsByClassName('content')[0];
         const contestLink = content.parentElement.getElementsByClassName('notice')[0].href;
@@ -47,16 +46,54 @@ const CommentsClassifier = () => {
         return a.toLowerCase().includes(b.toLowerCase());
     }
 
-    async function classifyComments(problems, contestId){
-        console.log("Classifying problems");
-        const problemsList = problems.map(problem => "Problem " + problem.index + " - " + problem.name);
-        console.log(problemsList);
-        const commentsDiv = document.getElementsByClassName('comments')[0];
-        const comments = commentsDiv.getElementsByClassName('comment');
-        const commentThreads = [...comments].filter(comment => {
-            return comment.parentElement == commentsDiv
+    async function classifySingleCommentByString(comment, problems, contestId) {
+        const commentText = getCommentText(comment);
+        const matchedProblems = [];
+        const splits = commentText.split(/[^A-Za-z0-9]/);
+        
+        problems.forEach((problem, index) => {
+            if(splits.includes(problem.index) || includesIgnoreCase(commentText, problem.name)
+              || commentText.includes('https://codeforces.com/contest/' + contestId + '/problem/' + problem.index)
+              || commentText.includes('https://codeforces.com/problemset/problem/' + contestId + '/' + problem.index)) {
+                matchedProblems.push(index);
+            }
         });
+        
+        return matchedProblems;
+    }
 
+    async function classifySingleCommentByGemini(comment, problems, session) {
+        const commentText = getCommentText(comment);
+        if (!commentText.trim()) return [];
+
+        try {
+            const prompt = generateClassificationPrompt(problems, commentText);
+            const result = await session.prompt(prompt);
+            
+            const problemCodes = result.trim().split(',').map(code => code.trim());
+            const matchedProblems = [];
+            
+            problems.forEach((problem, index) => {
+                if (problemCodes.includes(problem.index)) {
+                    matchedProblems.push(index);
+                }
+            });
+            
+            return matchedProblems;
+        } catch (error) {
+            console.error('Error classifying comment with Gemini:', error);
+            return null;
+        }
+    }
+
+    function generateClassificationPrompt(problems, commentText) {
+        const problemsDescription = problems.map(p => `${p.index}. ${p.name}`).join(' ');
+        return `The codeforces contest has the following problems. Here the problem codes are ${problems.map(p => p.index).join(', ')}: ${problemsDescription} \n\n` +
+               `Given the following comment by one of the users, return a comma separated list of which problem codes the user is talking about. Return only the problem codes.\n\n` +
+               `Comment: ${commentText}`;
+    }
+
+    function initializeProblemsToComments(problems) {
         const tempProblemsToComments = [];        
         problems.map(problem => tempProblemsToComments.push({
             code: problem.index,
@@ -70,36 +107,89 @@ const CommentsClassifier = () => {
             tags: [],
             comments: []
         });
-        // setProblemsToComments(tempProblemsToComments);
+        console.log("Initialized problems to comments mapping with size ", tempProblemsToComments.length);
+        return tempProblemsToComments;
+    }
+
+    async function classifyComments(problems, contestId) {
+        const startTime = performance.now();
+        console.log("Starting classification...");
         
-        console.log(tempProblemsToComments);
-        console.log("Classifying " + commentThreads.length + " comment threads");
+        const problemsList = problems.map(problem => "Problem " + problem.index + " - " + problem.name);
+        console.log(problemsList);
+        
+        const commentsDiv = document.getElementsByClassName('comments')[0];
+        const comments = commentsDiv.getElementsByClassName('comment');
+        const commentThreads = [...comments].filter(comment => {
+            return comment.parentElement == commentsDiv
+        });
 
-        for(let comment of commentThreads){
-            // find which problems the comment talks about
-            const commentText = getCommentText(comment);
+        console.log(`Classifying ${commentThreads.length} comment threads`);
+        let tempProblemsToComments = initializeProblemsToComments(problems);
+        setProblemsToComments(tempProblemsToComments);
 
-            let miscellaneous = true;
-            const splits = commentText.split(/[^A-Za-z0-9]/);
-            problems.map((problem, j) => {
-                if(splits.includes(problem.index) || includesIgnoreCase(commentText, problem.name)
-                  || commentText.includes('https://codeforces.com/contest/' + contestId + '/problem/' + problem.index)
-                  || commentText.includes('https://codeforces.com/problemset/problem/' + contestId + '/' + problem.index)){
-                    tempProblemsToComments[j].comments.push(comment);   
-                    miscellaneous = false;        
+        let classificationStats = {
+            string: 0,
+            gemini: 0
+        };
+
+        const geminiSession = await LanguageModel.create();
+        if(geminiSession == null){
+            console.error("Gemini Nano session is null. Nano may not be available");
+        } else {
+            console.log("Gemini Nano session initialized");
+        }
+        
+
+        // Process each comment
+        for (const comment of commentThreads) {
+            let matchedProblems = [];
+            
+            // Try Gemini
+            if ((!matchedProblems || matchedProblems.length === 0) && geminiSession) {
+                matchedProblems = await classifySingleCommentByGemini(comment, problems, geminiSession);
+                if (matchedProblems && matchedProblems.length > 0) {
+                    classificationStats.gemini++;
                 }
-            });
-
-            if(miscellaneous){
-                tempProblemsToComments[problems.length].comments.push(comment);
             }
+            
+            // Fall back to string matching if both failed
+            if (!matchedProblems || matchedProblems.length === 0) {
+                matchedProblems = await classifySingleCommentByString(comment, problems, contestId);
+                if (matchedProblems && matchedProblems.length > 0) {
+                    classificationStats.string++;
+                }
+            }
+
+            // Create new array reference for React state update
+            const updatedProblemsToComments = tempProblemsToComments.map(problem => ({
+                ...problem,
+                comments: [...problem.comments]
+            }));
+
+            // Add comment to matched problems or miscellaneous
+            if (matchedProblems.length > 0) {
+                matchedProblems.forEach(index => {
+                    updatedProblemsToComments[index].comments.push(comment);
+                });
+            } else {
+                updatedProblemsToComments[problems.length].comments.push(comment);
+            }
+
+            tempProblemsToComments = updatedProblemsToComments;
+            setProblemsToComments(updatedProblemsToComments);
+            console.log("Classified a comment");
         }
 
-        console.log(tempProblemsToComments);
-        console.log("Loading complete");
+        const endTime = performance.now();
+        const totalTime = (endTime - startTime) / 1000; // Convert to seconds
+
+        console.log("Classification complete");
+        console.log(`Total classification time: ${totalTime.toFixed(2)} seconds`);
+        console.log(`Average time per comment: ${(totalTime / commentThreads.length).toFixed(3)} seconds`);
+        console.log('Classification stats:', classificationStats);
+
         setLoading(false);
-        setProblemsToComments(tempProblemsToComments);
-        console.log('Completed classification');
     }
 
     function highlightTextOnScroll(element) {
@@ -137,7 +227,6 @@ const CommentsClassifier = () => {
     }
 
     const toggleComments = (code) => {
-        console.log("Toggling " + code + " comments");
         document.getElementById('comment-preview-list-' + code).classList.toggle('show');
         document.getElementById('heading-' + code).classList.toggle('close');
     }
