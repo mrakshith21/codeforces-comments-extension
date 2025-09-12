@@ -10,7 +10,9 @@ function App() {
 
     const [width, setWidth] = useState(300);
     const [menuSelected, setMenuSelected] = useState("Comments Classifier");
-    const [comments, setComments] = useState([]);
+    const [commentElements, setCommentElements] = useState([]);
+    const [problemsWithComments, setProblemsWithComments] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [isVisible, setIsVisible] = useState(true);
     const BORDER_SIZE = 4;
 
@@ -27,13 +29,86 @@ function App() {
         }
     };
 
-    useEffect(() => {
+    
+    const getCommentText = (comment) => {
+        if (comment.getElementsByClassName('ttypography').length == 0) {
+            return "";
+        }
+        try {            
+            return comment.getElementsByClassName('ttypography')[0].textContent;
+        } catch (error) {
+            console.error('Cannot get comment text of ', comment);
+            return "";   
+        }
+    };
+
+    useEffect(async () => {
+
+        const initCommentsClassifier = async () => {
+            try {
+                console.log("Started");
+                const pathParts = window.location.pathname.split('/');
+                const tutorialId = pathParts[pathParts.indexOf('entry') + 1];
+                console.log("Tutorial Id = ", tutorialId);
+
+                const content = document.getElementsByClassName('content')[0];
+                const contestLink = content.parentElement.getElementsByClassName('notice')[0].href;
+                const contestId = contestLink.split('/').pop();
+                console.log("Contest Id = ", contestId);
+
+                const commentsDiv = document.getElementsByClassName('comments')[0];
+                const commentsData = Array.from(commentsDiv.getElementsByClassName('comment'))
+                    .filter(comment => comment.parentElement === commentsDiv)
+                    .map(comment => ({
+                        id: comment.getAttribute('commentid'),
+                        text: getCommentText(comment),
+                        element: comment // Keep the DOM element for local use
+                    }));
+                
+                console.log("Comments Data: ", commentsData);
+                setCommentElements(commentsData);
+
+                const response = await chrome.runtime.sendMessage({
+                    type: 'CLASSIFY_COMMENTS',
+                    payload: {
+                        tutorialId,
+                        contestId,
+                        comments: commentsData.map(({ id, text }) => ({ id, text })) // Only send serializable data
+                    }
+                });
+
+                if (response.success) {
+                    let responseData = response.data;
+                    let updatedProblemsWithComments = responseData.map((problemWithComments) => {
+                        let updatedProblemWithComments = problemWithComments;
+                        const updatedComments = updatedProblemWithComments.comments.map(comment => {
+                            let updatedComment = comment;
+                            let matchingCommentData = commentsData.find(commentElement => commentElement.id === comment.id)
+                            updatedComment.commentElement = matchingCommentData ? matchingCommentData.element : null;
+                            return updatedComment;
+                        })
+                        updatedProblemWithComments.comments = updatedComments;
+                        return updatedProblemWithComments;
+                    });
+                    console.log("Received classified comments: ", updatedProblemsWithComments);
+                    setProblemsWithComments(updatedProblemsWithComments);
+                } else {
+                    console.error('Error from background script:', response.error);
+                }
+            } catch (error) {
+                console.error('Error in initialization:', error);
+            } finally {
+                console.log("Loading finished");
+                setLoading(false);
+            }
+        };
+        
         document.addEventListener('keydown', handleKeyDown);
 
 
         const commentsDiv = document.getElementsByClassName('comments')[0];
         const allComments = commentsDiv.getElementsByClassName('comment');
-        setComments(allComments);
+        setCommentElements(allComments);
 
         const appDiv = document.getElementById("codeforces-comment-preview");
         setWidth(appDiv.style.width);
@@ -54,6 +129,8 @@ function App() {
             document.removeEventListener("mousemove", resize, false);
         }, false);
 
+        await initCommentsClassifier();
+
         return () => { /*removes event listener on cleanup*/
             console.log("Removing..");
             window.removeEventListener("keydown", handleKeyDown);
@@ -63,16 +140,13 @@ function App() {
 
     const renderContent = () => {
         if (menuSelected == "All Comments") {
-            return <AllComments comments={comments} />
+            return <AllComments comments={commentElements} />
         }
         else if (menuSelected == "Users") {
-            return <Users comments={comments} />
-        }
-        else if (menuSelected == "Links") {
-            return <Links comments={comments} />
+            return <Users comments={commentElements} />
         }
         else if(menuSelected == "Comments Classifier"){
-            return <CommentsClassifier></CommentsClassifier> 
+            return <CommentsClassifier problemsWithComments={problemsWithComments}  loading={false}></CommentsClassifier> 
         }
     }
 
@@ -86,7 +160,6 @@ function App() {
                             <option selected value="Comments Classifier">Comments Classifier</option>
                             <option value="All Comments">All Comments</option>
                             <option value="Users">Users</option>
-                            <option value="Links">Links</option>
                         </select>
                     </div>
                     <div className=''>
